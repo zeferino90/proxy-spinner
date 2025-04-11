@@ -1,6 +1,8 @@
+
 import requests
 import os
 from requests.exceptions import ProxyError, SSLError, Timeout, ConnectionError
+from loguru import logger
 
 from proxy_spinner.constants import PROXY_SCRAPPER_URL
 
@@ -15,7 +17,7 @@ class ProxySpinner:
         self.proxy_exhausted = False
 
     def get_proxy(self, max_proxies_to_test: int = 50, verbose: bool = False) -> str:
-
+        logger.info("Getting proxy...")
         response = requests.get(PROXY_SCRAPPER_URL)
         assert response.status_code == 200, f"Failed to get proxy list. Status code: {response.status_code}"
         response = response.json()
@@ -36,14 +38,14 @@ class ProxySpinner:
 
         # Test them one by one
         for proxy_entry in proxies:
-
+            logger.debug(f"Testing proxy: {proxy_entry['ip']}:{proxy_entry['port']}")
             proxy = f"{proxy_entry['ip']}:{proxy_entry['port']}"
 
             if proxy not in self.used_proxies and self.test_proxy(proxy, verbose=verbose):
                 return proxy
 
-        # If none of them work, return the first one
-        return None
+        logger.error("No working proxy found")
+        raise RuntimeError("No working proxy found")
 
     def test_proxy(self, proxy: str, verbose: bool = False) -> bool:
         with ProxySpinner(proxy=proxy):
@@ -54,7 +56,8 @@ class ProxySpinner:
                 if verbose:
                     print(f"Proxy {proxy} failed with error: {e}")
                 return False
-    def renew_proxy(self, verbose: str = False) -> str:
+    def renew_proxy(self, verbose: bool = False) -> str:
+        logger.info("Renewing proxy...")
         self.current_proxy = self.get_proxy(verbose=verbose)
         self.used_proxies.append(self.current_proxy)
         self.proxy_exhausted = False
